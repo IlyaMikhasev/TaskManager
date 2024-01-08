@@ -17,19 +17,21 @@ namespace TaskManager
         public Form1()
         {
             InitializeComponent();
+            var keys = new DataColumn[1];
             DataColumn idColumn = new DataColumn("Id", Type.GetType("System.Int32"));
+            dt.Columns.Add(idColumn);
+            keys[0] = idColumn;
+            dt.PrimaryKey = keys;//добавление первичного ключа в колонку
             DataColumn nameColumn = new DataColumn("Name", Type.GetType("System.String"));
             DataColumn timeStart = new DataColumn("TimeStart", Type.GetType("System.String"));
             DataColumn timeProcessor = new DataColumn("TimeProcessor", Type.GetType("System.String"));
             DataColumn countTreads = new DataColumn("CountTreads", Type.GetType("System.Int32"));
 
-            dt.Columns.Add(idColumn);
             dt.Columns.Add(nameColumn);
             dt.Columns.Add(timeStart);
             dt.Columns.Add(timeProcessor);
             dt.Columns.Add(countTreads);
-            //dgMainFill(dgMain);
-            reloadTime = 1000;
+            reloadTime = 10000;
             timer1 = new System.Threading.Timer(dgMainFill, dgMain, 50, reloadTime);
 
         }
@@ -45,10 +47,8 @@ namespace TaskManager
             processes = Process.GetProcesses();
             foreach (Process process in processes)
             {
+                
                 string s, t;
-                //ДОБАВИТЬ В МЕНЮСТРИП
-                //process.Kill(); // принудительное закрытие
-                //process.CloseMainWindow(); // закрывает с диалогом
                 try 
                 { 
                     s = process.StartTime.ToString(); 
@@ -58,26 +58,43 @@ namespace TaskManager
                     t = process.TotalProcessorTime.ToString(); 
                 } catch { t = ""; }
                 try 
-                { 
-                    dt.Rows.Add(new object[] { process.Id, process.ProcessName, s, t, process.Threads.Count }); 
-                } catch { }
+                {
+                    //проверка на уже имеющиеся процессы в таблице(защита от повторений) 
+                    DataRow foundRow = dt.Rows.Find(process.Id);
+                    if (foundRow==null)
+                        dt.Rows.Add(new object[] { process.Id, process.ProcessName, s, t, process.Threads.Count });
+                }
+                catch { }
             }
-            //try
             {
                 Invoke((MethodInvoker)delegate
                 {
                     (sender as DataGridView).DataSource = dt;
                 });
             }
-            //catch { }
            
         }
-        // привязать контекстное меню к гриду 
         private void времяОбновленияToolStripMenuItem_Click(object sender, EventArgs e)
         {            
             Form form = new Form2();
             form.ShowDialog();
             timer1.Change(reloadTime, reloadTime);
+        }
+        //завершение процесса
+        private void menuStrip_killProcess_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                foreach (var process in Process.GetProcessesByName(dgMain.SelectedRows[0].Cells[1].Value.ToString()))
+                {
+                    process.Kill();
+                }
+            }
+            catch
+            {
+                MessageBox.Show("Для удаления процееса выделите всю строку");
+            }
+            dgMain.Refresh();
         }
     }
 }
